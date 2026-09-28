@@ -1,10 +1,7 @@
 package com.example.spring_security_jwt.model;
 
-import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
-
-import org.hibernate.boot.internal.Abstract;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -22,9 +19,7 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
 @Table (name = "users", uniqueConstraints = 
@@ -34,6 +29,8 @@ import lombok.Setter;
 @Data 
 @Builder 
 public class User  {
+
+    private static final long serialVersionUID = 1L;
 
     @Id 
     @GeneratedValue(strategy = GenerationType.IDENTITY) 
