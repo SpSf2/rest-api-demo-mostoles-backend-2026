@@ -10,6 +10,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import com.example.spring_security_jwt.model.User;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,7 +29,7 @@ public class UserDetailsImpl implements UserDetails {
     private String username;
     private String email;
 
-    @JasonIgnore
+    @JsonIgnore
     private String password;
 
     private Collection<? extends GrantedAuthority> authorities;
