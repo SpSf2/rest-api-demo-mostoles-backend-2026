@@ -33,6 +33,7 @@ class ProductDaoTest {
 	private ProductDao productDao;
 	
 	private Presentation presentacionPorUnidades;
+	@SuppressWarnings("unused")
 	private Presentation presentacionPorDecenas;
 	
 	private Product product0;

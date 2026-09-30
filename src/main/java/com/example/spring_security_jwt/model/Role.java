@@ -21,6 +21,7 @@ import lombok.NoArgsConstructor;
 @Builder 
 public class Role  {
 
+    @SuppressWarnings("unused")
     private static final long serialVersionUID = 1L;
 
     @Id

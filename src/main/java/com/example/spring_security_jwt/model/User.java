@@ -30,6 +30,7 @@ import lombok.NoArgsConstructor;
 @Builder 
 public class User  {
 
+    @SuppressWarnings("unused")
     private static final long serialVersionUID = 1L;
 
     @Id 
