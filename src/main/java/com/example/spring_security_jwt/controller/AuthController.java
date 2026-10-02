@@ -1,6 +1,7 @@
 package com.example.spring_security_jwt.controller;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -45,30 +46,36 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AuthController.class);
+private static final Logger LOGGER = LoggerFactory.getLogger(AuthController.class);
 
     // METODO PARA REGISTRAR UN NUEVO USUARIO
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signupRequest,
             BindingResult validationResults) {
 
-        if (userRepository.existsByUsername(signupRequest.getUsername())) {
+        LOGGER.info(">>> ENTRANDO EN /signup PARA: {}", signupRequest.getUsername());
 
+        // 1. Validaciones del DTO
+        if (validationResults.hasErrors()) {
+            String errorMessage = validationResults.getFieldErrors().stream()
+                    .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                    .collect(Collectors.joining(", "));
+            LOGGER.warn(">>> Error de validación: {}", errorMessage);
+            return ResponseEntity.badRequest().body(new MessageResponse("Error de validación: " + errorMessage));
+        }
+
+        // 2. Validar duplicados
+        if (userRepository.existsByUsername(signupRequest.getUsername())) {
+            LOGGER.warn(">>> El usuario ya existe");
             return ResponseEntity.badRequest().body(new MessageResponse("Error: El usuario ya existe"));
         }
 
         if (userRepository.existsByEmail(signupRequest.getEmail())) {
-
+            LOGGER.warn(">>> El email ya existe");
             return ResponseEntity.badRequest().body(new MessageResponse("Error: El email ya existe"));
         }
 
-        /*
-         * Si no hay errores en el signupRequest, entonces se procede a crear el usuario
-         * para persistirlo en la tabla User con las propiedades del json recibido en la
-         * petición
-         * SignupRequest
-         */
-
+        // 3. Creación del objeto User
         User user = User.builder()
                 .username(signupRequest.getUsername())
                 .email(signupRequest.getEmail())
@@ -76,54 +83,35 @@ public class AuthController {
                 .build();
 
         Set<String> strRoles = signupRequest.getRole();
-
         Set<Role> roles = new HashSet<>();
 
-        if (strRoles == null) {
-
+        if (strRoles == null || strRoles.isEmpty()) {
             Role userRole = roleRepository.findByName(ERole.ROLE_USER)
                     .orElseThrow(() -> new RuntimeException("Error: No se ha podido encontrar el rol"));
-
             roles.add(userRole);
         } else {
-
             strRoles.forEach(role -> {
-
-                if (role == "admin") {
-                    Role adminRole = roleRepository.findByName(ERole.ROLE_ADMIN)
-                            .orElseThrow(() -> new RuntimeException("Error: Role is not found "));
-                    roles.add(adminRole);
-                } else {
-
-                    Role userRole = roleRepository.findByName(ERole.ROLE_USER)
-                            .orElseThrow(() -> new RuntimeException("Error: Role not found"));
-                    roles.add(userRole);
-
+                switch (role.toLowerCase()) {
+                    case "admin":
+                        Role adminRole = roleRepository.findByName(ERole.ROLE_ADMIN)
+                                .orElseThrow(() -> new RuntimeException("Error: No se ha podido encontrar el rol de admin"));
+                        roles.add(adminRole);
+                        break;
+                    default:
+                        Role userRole = roleRepository.findByName(ERole.ROLE_USER)
+                                .orElseThrow(() -> new RuntimeException("Error: No se ha podido encontrar el rol de usuario"));
+                        roles.add(userRole);
+                        break;
                 }
-                /*
-                 * strRoles.forEach(role -> {
-                 * switch (role) {
-                 * case "admin": Role adminRole = roleRepository.findByName(ERole.ROLE_ADMIN)
-                 * .orElseThrow(() -> new RuntimeException
-                 * ("Error: No se ha podido encontrar el rol"));
-                 * roles.add(adminRole);
-                 * break;
-                 * 
-                 * default: Role userRole = roleRepository.findByName(ERole.ROLE_USER)
-                 * .orElseThrow(() -> new RuntimeException
-                 * ("Error: No se ha podido encontrar el rol"));
-                 * roles.add(userRole);
-                 * break;
-                 * }
-                 */
             });
         }
 
         user.setRoles(roles);
         userRepository.save(user);
 
-        return ResponseEntity.ok(new MessageResponse("User registered successfully"));
+        LOGGER.info(">>> USUARIO GUARDADO CON ÉXITO");
 
+        return ResponseEntity.ok(new MessageResponse("User registered successfully"));
     }
 
     // Metodo para logearse un usuario que se ha registrado previamente
