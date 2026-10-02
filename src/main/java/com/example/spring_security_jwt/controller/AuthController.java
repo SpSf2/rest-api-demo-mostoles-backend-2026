@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -120,7 +121,7 @@ private static final Logger LOGGER = LoggerFactory.getLogger(AuthController.clas
         
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
-        
+        try{
                 SecurityContextHolder.getContext().setAuthentication(authentication);
        
                 String jwt = jwtUtils.generateJwtToken(authentication);
@@ -136,6 +137,14 @@ private static final Logger LOGGER = LoggerFactory.getLogger(AuthController.clas
         LOGGER.info("Roles del usuario: {}", roles);
         return ResponseEntity.ok(
                 new JwtResponse(jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles));
-    }
+   
+            } catch (org.springframework.security.authentication.BadCredentialsException e) {
+            LOGGER.error("Credenciales incorrectas para el usuario: {}", loginRequest.getUsername());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Error: Usuario o contraseña incorrectos");
+        } catch (Exception e) {
+            LOGGER.error("Error durante la autenticación: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error interno del servidor: " + e.getMessage());
+        }
+            }
 
 }

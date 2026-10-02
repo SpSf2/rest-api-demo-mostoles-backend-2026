@@ -24,10 +24,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthTokenFilter.class);
 
-    //inyectamos las dependencias
-    @SuppressWarnings("unused")
     private final JwtUtils jwtUtils;
-    @SuppressWarnings("unused")
     private final UserDetailsServiceImpl userDetailsService;
 
     @Override
@@ -36,10 +33,8 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         
         try {
-            @SuppressWarnings("unused")
-            String jwt = parseJwt(request); //en parseJwt() crear el metodo en quick fix
+            String jwt = parseJwt(request);
            
-            //modificacion de la ia por el problema del postman:
             if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
                 String username = jwtUtils.getUserNameFromJwtToken(jwt);
 
@@ -53,22 +48,29 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
-        } catch (Exception e) {/* logger agregado en el mismo cambio */
+        } catch (Exception e) {
             logger.error("No se pudo establecer la autenticación del usuario: {}", e.getMessage());
         }
         
-        // ¡ESTA LÍNEA ES CRUCIAL! Le dice a Spring Security que continúe al siguiente filtro/controlador
         filterChain.doFilter(request, response);
     }
 
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getServletPath();
+        if (!StringUtils.hasText(path)) {
+            path = request.getRequestURI();
+        }
+        return path.contains("/api/auth/");
+    }
+
     private String parseJwt(HttpServletRequest request) {
-        
         String authHeader = request.getHeader("Authorization");
 
-        if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer: ")) {
+        // CORREGIDO: Se busca "Bearer " con espacio en lugar de "Bearer: "
+        if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
             return authHeader.substring(7);
         }
         return null;    
     }
-
 }

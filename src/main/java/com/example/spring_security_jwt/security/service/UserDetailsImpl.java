@@ -26,7 +26,7 @@ public class UserDetailsImpl implements UserDetails {
     private static final long serialVersionUID = 1L;
 
     private long id;
-    @SuppressWarnings("unused")
+    
     private String username;
     private String email;
 
@@ -55,13 +55,13 @@ public class UserDetailsImpl implements UserDetails {
     @Override
     public @Nullable String getPassword() {
        
-        throw new UnsupportedOperationException("Unimplemented method 'getPassword'");
+        return password;
     }
 
     @Override
     public String getUsername() {
         
-        throw new UnsupportedOperationException("Unimplemented method 'getUsername'");
+        return username;
     }
 
 }
