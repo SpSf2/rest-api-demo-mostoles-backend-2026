@@ -59,7 +59,7 @@ public class WebSecurityConfig {
     // 3º Bean
     //se quita el private, porque no es necesario que sea privado aunque solo se utilice aqui
     @Bean
-    private PasswordEncoder passwordEncoder() {
+    public PasswordEncoder passwordEncoder() {
        
         return new BCryptPasswordEncoder();
     }
