@@ -34,7 +34,7 @@ public class WebSecurityConfig {
     private final UserDetailsServiceImpl userDetailsService; //se usa la implementacion que ha sido creada
                                                             //en nuestro proyecto ya que el Service no es
                                                             //una clase creada en com.example
-    @SuppressWarnings("unused")
+   
     private final AuthEntryPointJwt unauthorizeHandle;
     private final JwtUtils jwtUtils;
 

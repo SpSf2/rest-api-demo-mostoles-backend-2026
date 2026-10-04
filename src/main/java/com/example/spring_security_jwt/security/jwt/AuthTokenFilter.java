@@ -51,7 +51,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         } catch (Exception e) {
             logger.error("No se pudo establecer la autenticación del usuario: {}", e.getMessage());
         }
-        
+        // ¡ESTA LÍNEA ES CRUCIAL! Le dice a Spring Security que continúe al siguiente filtro/controlador:
         filterChain.doFilter(request, response);
     }
 

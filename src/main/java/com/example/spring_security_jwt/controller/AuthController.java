@@ -1,7 +1,6 @@
 package com.example.spring_security_jwt.controller;
 
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -139,12 +138,13 @@ private static final Logger LOGGER = LoggerFactory.getLogger(AuthController.clas
                 new JwtResponse(jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles));
    
             } catch (org.springframework.security.authentication.BadCredentialsException e) {
-            LOGGER.error("Credenciales incorrectas para el usuario: {}", loginRequest.getUsername());
+                  LOGGER.error("Credenciales incorrectas para el usuario: {}", loginRequest.getUsername());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Error: Usuario o contraseña incorrectos");
-        } catch (Exception e) {
-            LOGGER.error("Error durante la autenticación: ", e);
+          
+            } catch (Exception e) {
+                    LOGGER.error("Error durante la autenticación: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error interno del servidor: " + e.getMessage());
         }
-            }
+    }
 
 }
