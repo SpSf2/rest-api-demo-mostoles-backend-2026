@@ -1,5 +1,8 @@
 package com.example.controllers;
 
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -12,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.hateoas.Link;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -146,10 +150,22 @@ public class ProductController {
 
 		try {
 			Product product = productService.findById(product_id);
+
+		/*Vamos a agregar enlaces hipermedia a la respuesta: */
+		//Creamos el enlace self apuntando al propio método:
+		Link selfLink = linkTo(methodOn(ProductController.class)
+			 					.findProductById(product_id)).withSelfRel();
+
+			//Creamos el enlace de la lista deproductos:
+			Link allProductosLink = linkTo(methodOn(ProductController.class)
+				 					.dameProductos(3, 3)).withRel("productos");
+
 			if (product != null) {
 				String successMessage = "El producto con id " + product_id + " ha sido encontrado";
 				responseAsMap.put("mensaje todo OK: ", successMessage);
 				responseAsMap.put("producto encontrado: ", product);
+				responseAsMap.put("enlaces", selfLink);           //Agregamos el enlace self que hemos creado
+				responseAsMap.put("enlaces", allProductosLink);   //Agregamos el enlace a la lista de productos
 				responseEntity = new ResponseEntity<Map<String, Object>>(responseAsMap, HttpStatus.OK);
 			} else {
 				String failureMessage = "No ha sido encontrado ningun producto con id: " + product_id;
