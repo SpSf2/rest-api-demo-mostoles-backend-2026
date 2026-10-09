@@ -172,8 +172,22 @@ class ProductControllerTest {
 		// then
 
 		response.andExpect(status().isOk()).andDo(print())
-				.andExpect(jsonPath("$.products.size()",
-						is(products.size())));
+				// El CollectionModel serializa su contenido bajo "content"
+				.andExpect(jsonPath("$.products.content.size()",
+						is(products.size())))
+				// Enlace self de la coleccion (CollectionModel). Al tener @RequestParam
+				// opcionales, Spring HATEOAS lo expone como plantilla /products{?page,size}
+				.andExpect(jsonPath("$.products.links[0].rel", is("self")))
+				.andExpect(jsonPath("$.products.links[0].href",
+						is("http://localhost/products{?page,size}")))
+				// Cada producto es un EntityModel: enlace self + enlace a la coleccion
+				.andExpect(jsonPath("$.products.content[0].links[0].rel", is("self")))
+				.andExpect(jsonPath("$.products.content[0].links[0].href",
+						is("http://localhost/products/" + products.get(0).getId())))
+				.andExpect(jsonPath("$.products.content[0].links[1].rel", is("productos")))
+				// El contenido del EntityModel se "desenvuelve" (@JsonUnwrapped)
+				.andExpect(jsonPath("$.products.content[0].name",
+						is(products.get(0).getName())));
 
 	}
 
@@ -208,7 +222,10 @@ class ProductControllerTest {
 				    	.andDo(print())
 				    	.andExpect(status().isCreated())
 				    	.andExpect(jsonPath("$.product.name",
-		  			is(product1.getName())));
+		  			is(product1.getName())))
+				    	// El Product va envuelto en un EntityModel con enlaces hipermedia
+				    	.andExpect(jsonPath("$.product.links[0].rel", is("self")))
+				    	.andExpect(jsonPath("$.product.links[1].rel", is("productos")));
 		  	
 		  
 		} catch (Exception e) {
@@ -238,7 +255,10 @@ class ProductControllerTest {
 				.andDo(print())
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$['producto encontrado: '].name",
-						is(product1.getName())));
+						is(product1.getName())))
+				// El Product va envuelto en un EntityModel con enlaces hipermedia
+				.andExpect(jsonPath("$['producto encontrado: '].links[0].rel", is("self")))
+				.andExpect(jsonPath("$['producto encontrado: '].links[1].rel", is("productos")));
 	}
 
 	@Test
@@ -290,7 +310,10 @@ class ProductControllerTest {
             .andExpect(jsonPath("$['producto actualizado: '].name",
             		is(product1.getName())))
             .andExpect(jsonPath("$['producto actualizado: '].description",
-            		is(product1.getDescription())));
+            		is(product1.getDescription())))
+            // El Product va envuelto en un EntityModel con enlaces hipermedia
+            .andExpect(jsonPath("$['producto actualizado: '].links[0].rel", is("self")))
+            .andExpect(jsonPath("$['producto actualizado: '].links[1].rel", is("productos")));
         
 
     }
@@ -308,7 +331,9 @@ class ProductControllerTest {
         //when
         mockMvc.perform(delete("/products/{id}", ProductId)
 				.header("Authorization", this.token))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                // CollectionModel vacio que solo contiene el enlace a la coleccion
+                .andExpect(jsonPath("$.enlaces.links[0].rel", is("productos")));
 
     }
 	
