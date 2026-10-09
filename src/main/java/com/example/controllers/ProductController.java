@@ -106,10 +106,9 @@ public class ProductController {
 			@RequestParam(name = "page", required = false) Integer page,
 			@RequestParam(name = "size", required = false) Integer size) {
 
-		// La capa de servicio ya devuelve DTOs, no entidades de persistencia
-		List<ProductDto> products = null;
 		Map<String, Object> responseAsMap = new HashMap<>();
 		Sort sort = Sort.by("name");
+		CollectionModel<ProductDto> productsModel;
 
 		// Comprobar si en la peticion (request) me han suministrado los parametros page
 		// y size
@@ -117,23 +116,26 @@ public class ProductController {
 
 			Pageable pageable = PageRequest.of(page, size, sort);
 
-			// Implica devolver los productos paginados, es decir, una pagina de ProductDto
+			// Implica devolver los productos paginados. El assembler construye un
+			// PagedModel (subclase de CollectionModel) con la metadata de paginacion y los
+			// enlaces de navegacion dinamicos: first, prev, next, last, ademas de self y
+			// la operacion de alta (create)
 			Page<ProductDto> productPage = productService.findAll(pageable);
-			products = productPage.getContent();
+			productsModel = productAssembler.toPagedModel(productPage);
 
 		} else {
 
-			// Devolver los productos ordenados, por nombre (name), por ejemplo
-			products = productService.findAll(sort);
+			// Devolver los productos ordenados, por nombre (name), por ejemplo. El
+			// assembler anade el self de la coleccion y la operacion de alta (create)
+			List<ProductDto> products = productService.findAll(sort);
+			productsModel = productAssembler.toCollectionModel(products);
 		}
 
 		/*
 		 * HATEOAS: el ProductAssembler centraliza todos los enlaces. Un ProductDto ya
 		 * ES un RepresentationModel (trae sus enlaces) y el assembler devuelve el
-		 * CollectionModel con el enlace self de la coleccion.
+		 * CollectionModel/PagedModel con sus enlaces.
 		 */
-		CollectionModel<ProductDto> productsModel = productAssembler.toCollectionModel(products);
-
 		responseAsMap.put("products", productsModel);
 
 		return new ResponseEntity<>(responseAsMap, HttpStatus.OK);

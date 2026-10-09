@@ -25,6 +25,10 @@ import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabas
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -195,15 +199,65 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.products.links[0].rel", is("self")))
 				.andExpect(jsonPath("$.products.links[0].href",
 						is("http://localhost/products{?page,size}")))
-				// Cada producto es un RepresentationModel: enlace self + enlace a la coleccion
+				// La coleccion tambien anuncia la operacion de alta (POST)
+				.andExpect(jsonPath("$.products.links[1].rel", is("create")))
+				// Cada producto es un RepresentationModel con enlaces de mutacion:
+				// self, update, delete y el enlace a la coleccion
 				.andExpect(jsonPath("$.products.content[0].links[0].rel", is("self")))
 				.andExpect(jsonPath("$.products.content[0].links[0].href",
 						is("http://localhost/products/" + productDto1.getId())))
-				.andExpect(jsonPath("$.products.content[0].links[1].rel", is("productos")))
+				.andExpect(jsonPath("$.products.content[0].links[1].rel", is("update")))
+				.andExpect(jsonPath("$.products.content[0].links[2].rel", is("delete")))
+				.andExpect(jsonPath("$.products.content[0].links[3].rel", is("productos")))
 				// El propio ProductDto (RepresentationModel) expone sus campos + links
 				.andExpect(jsonPath("$.products.content[0].name",
 						is(productDto1.getName())));
 
+	}
+
+	@Test
+	@DisplayName("Controller Test que recupera los productos paginados con PagedModel")
+	void testFindAllPaginado() throws Exception {
+
+		// given: una pagina de 1 elemento sobre un total de 2 (2 paginas)
+		int page = 0;
+		int size = 1;
+		Pageable pageable = PageRequest.of(page, size, Sort.by("name"));
+		Page<ProductDto> productPage = new PageImpl<>(List.of(productDto1), pageable, productsDto.size());
+
+		given(productService.findAll(any(Pageable.class))).willReturn(productPage);
+
+		// when
+		ResultActions response = mockMvc
+				.perform(get("/products")
+				.param("page", String.valueOf(page))
+				.param("size", String.valueOf(size))
+				.accept(MediaType.APPLICATION_JSON)
+				.header("Authorization", this.token));
+
+		// then
+		response.andExpect(status().isOk()).andDo(print())
+				// Metadata de paginacion expuesta bajo "page" por el PagedModel
+				.andExpect(jsonPath("$.products.page.size", is(size)))
+				.andExpect(jsonPath("$.products.page.number", is(page)))
+				.andExpect(jsonPath("$.products.page.totalElements", is(productsDto.size())))
+				.andExpect(jsonPath("$.products.page.totalPages", is(2)))
+				// Contenido de la pagina actual
+				.andExpect(jsonPath("$.products.content.size()", is(1)))
+				// Enlaces generados por el assembler: self (pagina actual), create (POST)
+				// y navegacion first, last y next. En la primera pagina no hay prev
+				.andExpect(jsonPath("$.products.links[0].rel", is("self")))
+				.andExpect(jsonPath("$.products.links[0].href",
+						is("http://localhost/products?page=0&size=1")))
+				.andExpect(jsonPath("$.products.links[1].rel", is("create")))
+				.andExpect(jsonPath("$.products.links[2].rel", is("first")))
+				.andExpect(jsonPath("$.products.links[3].rel", is("last")))
+				.andExpect(jsonPath("$.products.links[3].href",
+						is("http://localhost/products?page=1&size=1")))
+				.andExpect(jsonPath("$.products.links[4].rel", is("next")))
+				.andExpect(jsonPath("$.products.links[4].href",
+						is("http://localhost/products?page=1&size=1")))
+				.andExpect(jsonPath("$.products.links[5]").doesNotExist());
 	}
 
 	@Test
@@ -240,7 +294,9 @@ class ProductControllerTest {
 		  			is(product1.getName())))
 				    	// El ProductDto (RepresentationModel) lleva los enlaces del assembler
 				    	.andExpect(jsonPath("$.product.links[0].rel", is("self")))
-				    	.andExpect(jsonPath("$.product.links[1].rel", is("productos")));
+				    	.andExpect(jsonPath("$.product.links[1].rel", is("update")))
+				    	.andExpect(jsonPath("$.product.links[2].rel", is("delete")))
+				    	.andExpect(jsonPath("$.product.links[3].rel", is("productos")));
 		  	
 		  
 		} catch (Exception e) {
@@ -273,7 +329,9 @@ class ProductControllerTest {
 						is(product1.getName())))
 				// El ProductDto (RepresentationModel) lleva los enlaces del assembler
 				.andExpect(jsonPath("$['producto encontrado: '].links[0].rel", is("self")))
-				.andExpect(jsonPath("$['producto encontrado: '].links[1].rel", is("productos")));
+				.andExpect(jsonPath("$['producto encontrado: '].links[1].rel", is("update")))
+				.andExpect(jsonPath("$['producto encontrado: '].links[2].rel", is("delete")))
+				.andExpect(jsonPath("$['producto encontrado: '].links[3].rel", is("productos")));
 	}
 
 	@Test
@@ -328,7 +386,9 @@ class ProductControllerTest {
             		is(product1.getDescription())))
             // El ProductDto (RepresentationModel) lleva los enlaces del assembler
             .andExpect(jsonPath("$['producto actualizado: '].links[0].rel", is("self")))
-            .andExpect(jsonPath("$['producto actualizado: '].links[1].rel", is("productos")));
+            .andExpect(jsonPath("$['producto actualizado: '].links[1].rel", is("update")))
+            .andExpect(jsonPath("$['producto actualizado: '].links[2].rel", is("delete")))
+            .andExpect(jsonPath("$['producto actualizado: '].links[3].rel", is("productos")));
         
 
     }
@@ -347,8 +407,9 @@ class ProductControllerTest {
         mockMvc.perform(delete("/products/{id}", ProductId)
 				.header("Authorization", this.token))
                 .andExpect(status().isOk())
-                // CollectionModel vacio que solo contiene el enlace self de la coleccion
-                .andExpect(jsonPath("$.enlaces.links[0].rel", is("self")));
+                // CollectionModel vacio: self + la operacion de alta (create)
+                .andExpect(jsonPath("$.enlaces.links[0].rel", is("self")))
+                .andExpect(jsonPath("$.enlaces.links[1].rel", is("create")));
 
     }
 	
