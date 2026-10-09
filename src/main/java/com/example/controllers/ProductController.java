@@ -1,8 +1,5 @@
 package com.example.controllers;
 
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,7 +13,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.hateoas.CollectionModel;
-import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -37,6 +33,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.example.dto.ProductDto;
 import com.example.entities.Product;
+import com.example.mappers.ProductAssembler;
 import com.example.models.FileUploadResponse;
 import com.example.services.ProductService;
 import com.example.utilities.FileDownloadUtil;
@@ -72,6 +69,7 @@ import lombok.RequiredArgsConstructor;
 public class ProductController {
 
 	private final ProductService productService;
+	private final ProductAssembler productAssembler;
 	private final FileUploadUtil fileUploadUtil;
 	private final FileDownloadUtil fileDownloadUtil;
 	private final FileUtil fileUtil;
@@ -130,27 +128,11 @@ public class ProductController {
 		}
 
 		/*
-		 * HATEOAS: envolvemos cada ProductDto en un EntityModel y le agregamos sus
-		 * enlaces hipermedia. Codigo repetitivo a proposito (implementacion mas basica,
-		 * sin RepresentationModel ni RepresentationModelAssemblerSupport).
+		 * HATEOAS: el ProductAssembler centraliza todos los enlaces. Un ProductDto ya
+		 * ES un RepresentationModel (trae sus enlaces) y el assembler devuelve el
+		 * CollectionModel con el enlace self de la coleccion.
 		 */
-		List<EntityModel<ProductDto>> productosModel = new ArrayList<>();
-
-		for (ProductDto producto : products) {
-
-			// Enlace self de cada producto -> GET /products/{id}
-			// Enlace a la coleccion -> GET /products
-			EntityModel<ProductDto> productoModel = EntityModel.of(producto,
-					linkTo(methodOn(ProductController.class).findProductById(producto.id())).withSelfRel(),
-					linkTo(methodOn(ProductController.class).dameProductos(null, null)).withRel("productos"));
-
-			productosModel.add(productoModel);
-		}
-
-		// Envolvemos la coleccion de EntityModel en un CollectionModel y le agregamos
-		// su propio enlace self
-		CollectionModel<EntityModel<ProductDto>> productsModel = CollectionModel.of(productosModel);
-		productsModel.add(linkTo(methodOn(ProductController.class).dameProductos(null, null)).withSelfRel());
+		CollectionModel<ProductDto> productsModel = productAssembler.toCollectionModel(products);
 
 		responseAsMap.put("products", productsModel);
 
@@ -180,13 +162,8 @@ public class ProductController {
 
 			if (product != null) {
 
-				/*
-				 * HATEOAS: envolvemos el ProductDto en un EntityModel y le agregamos los
-				 * enlaces hipermedia (self -> GET /products/{id}, productos -> GET /products)
-				 */
-				EntityModel<ProductDto> productModel = EntityModel.of(product,
-						linkTo(methodOn(ProductController.class).findProductById(product.id())).withSelfRel(),
-						linkTo(methodOn(ProductController.class).dameProductos(null, null)).withRel("productos"));
+				// HATEOAS: el assembler anade los enlaces (self y productos)
+				ProductDto productModel = productAssembler.toModel(product);
 
 				String successMessage = "El producto con id " + product_id + " ha sido encontrado";
 				responseAsMap.put("mensaje todo OK: ", successMessage);
@@ -298,13 +275,8 @@ public class ProductController {
 			// El servicio devuelve el DTO del producto ya persistido
 			ProductDto productoPersistido = productService.save(product);
 
-			/*
-			 * HATEOAS: envolvemos el ProductDto persistido en un EntityModel con sus
-			 * enlaces (self -> GET /products/{id}, productos -> GET /products)
-			 */
-			EntityModel<ProductDto> productModel = EntityModel.of(productoPersistido,
-					linkTo(methodOn(ProductController.class).findProductById(productoPersistido.id())).withSelfRel(),
-					linkTo(methodOn(ProductController.class).dameProductos(null, null)).withRel("productos"));
+			// HATEOAS: el assembler anade los enlaces (self y productos)
+			ProductDto productModel = productAssembler.toModel(productoPersistido);
 
 			responseAsMap.put("mensaje: ", "Producto persistido exitosamente!!!");
 			responseAsMap.put("product", productModel);
@@ -465,9 +437,9 @@ public class ProductController {
 			/**
 			 * comprobar si productoParaActualizar tiene imagen y si es así eliminarla
 			 */
-			if (productoParaActualizar.productImage() != null) {
+			if (productoParaActualizar.getProductImage() != null) {
 				// Eliminar la imagen asociada
-				fileUtil.eliminarArchivo(productoParaActualizar.productImage());
+				fileUtil.eliminarArchivo(productoParaActualizar.getProductImage());
 			}
 			/**
 			 * agregar prefijo: código alfanumérico aleatorio con método Apache Commons text
@@ -499,13 +471,8 @@ public class ProductController {
 			// El servicio devuelve el DTO del producto ya actualizado
 			ProductDto productoAGuardar = productService.save(product);
 
-			/*
-			 * HATEOAS: envolvemos el ProductDto actualizado en un EntityModel con sus
-			 * enlaces (self -> GET /products/{id}, productos -> GET /products)
-			 */
-			EntityModel<ProductDto> productModel = EntityModel.of(productoAGuardar,
-					linkTo(methodOn(ProductController.class).findProductById(productoAGuardar.id())).withSelfRel(),
-					linkTo(methodOn(ProductController.class).dameProductos(null, null)).withRel("productos"));
+			// HATEOAS: el assembler anade los enlaces (self y productos)
+			ProductDto productModel = productAssembler.toModel(productoAGuardar);
 
 			responseAsMap.put("mensaje: ", "Producto actualizado exitósamente!");
 			responseAsMap.put("producto actualizado: ", productModel);
@@ -548,19 +515,18 @@ public class ProductController {
             return new ResponseEntity<Map<String, Object>>(responseAsMap, HttpStatus.NOT_FOUND);
         }
 
-            if (productToDelete.productImage() != null) {
-                fileUtil.eliminarArchivo(productToDelete.productImage());
+            if (productToDelete.getProductImage() != null) {
+                fileUtil.eliminarArchivo(productToDelete.getProductImage());
             }
 
             productService.delete(id);
 
             /*
              * HATEOAS: el recurso ya no existe, asi que no hay contenido que envolver.
-             * Agregamos un CollectionModel vacio que contiene solo el enlace a la
-             * coleccion de productos (GET /products).
+             * El assembler nos devuelve un CollectionModel vacio con el enlace self de la
+             * coleccion de productos (GET /products), reutilizando el codigo comun.
              */
-            CollectionModel<ProductDto> enlaces = CollectionModel.empty();
-            enlaces.add(linkTo(methodOn(ProductController.class).dameProductos(null, null)).withRel("productos"));
+            CollectionModel<ProductDto> enlaces = productAssembler.toCollectionModel(List.of());
 
             String successMessage = "El producto con id " + id + ", ha sido eliminado";
             responseAsMap.put("mensaje", successMessage);

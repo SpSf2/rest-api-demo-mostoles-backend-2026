@@ -195,14 +195,14 @@ class ProductControllerTest {
 				.andExpect(jsonPath("$.products.links[0].rel", is("self")))
 				.andExpect(jsonPath("$.products.links[0].href",
 						is("http://localhost/products{?page,size}")))
-				// Cada producto es un EntityModel: enlace self + enlace a la coleccion
+				// Cada producto es un RepresentationModel: enlace self + enlace a la coleccion
 				.andExpect(jsonPath("$.products.content[0].links[0].rel", is("self")))
 				.andExpect(jsonPath("$.products.content[0].links[0].href",
-						is("http://localhost/products/" + productDto1.id())))
+						is("http://localhost/products/" + productDto1.getId())))
 				.andExpect(jsonPath("$.products.content[0].links[1].rel", is("productos")))
-				// El contenido del EntityModel se "desenvuelve" (@JsonUnwrapped)
+				// El propio ProductDto (RepresentationModel) expone sus campos + links
 				.andExpect(jsonPath("$.products.content[0].name",
-						is(productDto1.name())));
+						is(productDto1.getName())));
 
 	}
 
@@ -238,7 +238,7 @@ class ProductControllerTest {
 				    	.andExpect(status().isCreated())
 				    	.andExpect(jsonPath("$.product.name",
 		  			is(product1.getName())))
-				    	// El Product va envuelto en un EntityModel con enlaces hipermedia
+				    	// El ProductDto (RepresentationModel) lleva los enlaces del assembler
 				    	.andExpect(jsonPath("$.product.links[0].rel", is("self")))
 				    	.andExpect(jsonPath("$.product.links[1].rel", is("productos")));
 		  	
@@ -271,7 +271,7 @@ class ProductControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$['producto encontrado: '].name",
 						is(product1.getName())))
-				// El Product va envuelto en un EntityModel con enlaces hipermedia
+				// El ProductDto (RepresentationModel) lleva los enlaces del assembler
 				.andExpect(jsonPath("$['producto encontrado: '].links[0].rel", is("self")))
 				.andExpect(jsonPath("$['producto encontrado: '].links[1].rel", is("productos")));
 	}
@@ -326,7 +326,7 @@ class ProductControllerTest {
             		is(product1.getName())))
             .andExpect(jsonPath("$['producto actualizado: '].description",
             		is(product1.getDescription())))
-            // El Product va envuelto en un EntityModel con enlaces hipermedia
+            // El ProductDto (RepresentationModel) lleva los enlaces del assembler
             .andExpect(jsonPath("$['producto actualizado: '].links[0].rel", is("self")))
             .andExpect(jsonPath("$['producto actualizado: '].links[1].rel", is("productos")));
         
@@ -347,8 +347,8 @@ class ProductControllerTest {
         mockMvc.perform(delete("/products/{id}", ProductId)
 				.header("Authorization", this.token))
                 .andExpect(status().isOk())
-                // CollectionModel vacio que solo contiene el enlace a la coleccion
-                .andExpect(jsonPath("$.enlaces.links[0].rel", is("productos")));
+                // CollectionModel vacio que solo contiene el enlace self de la coleccion
+                .andExpect(jsonPath("$.enlaces.links[0].rel", is("self")));
 
     }
 	

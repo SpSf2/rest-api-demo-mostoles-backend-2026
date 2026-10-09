@@ -102,7 +102,7 @@ class ProductServiceImplTest {
 	
 		// then
 		assertThat(productoGuardado).isNotNull();
-		assertThat(productoGuardado.name()).isEqualTo(product1.getName());
+		assertThat(productoGuardado.getName()).isEqualTo(product1.getName());
 	}
 
 
