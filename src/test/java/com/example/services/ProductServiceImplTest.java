@@ -3,7 +3,6 @@ package com.example.services;
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -14,14 +13,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mapstruct.factory.Mappers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.dao.PresentationDao;
 import com.example.dao.ProductDao;
+import com.example.dto.ProductDto;
 import com.example.entities.Presentation;
 import com.example.entities.Product;
+import com.example.mappers.ProductMapper;
 
 // import static org.mockito.BDDMockito.given;
 
@@ -39,8 +41,10 @@ class ProductServiceImplTest {
 	 * para aislar todo lo posible el test que se esta implementando */
 	private ProductDao productDao;
 	
-	@Mock
-	private PresentationDao presentationDao;
+	/* Usamos la implementacion real generada por MapStruct (ProductMapperImpl),
+	 * espiada con Mockito, para probar tambien el mapeo entidad <-> DTO */
+	@Spy
+	private ProductMapper productMapper = Mappers.getMapper(ProductMapper.class);
 	
 	@InjectMocks
 	private ProductServiceImpl productServiceImpl;
@@ -93,11 +97,12 @@ class ProductServiceImplTest {
 		
 			
 		// when. Cuando se guarde el producto, utilizando el servicio
-		Product productoGuardado = productServiceImpl.save(product1);
+		ProductDto productoGuardado = productServiceImpl.save(product1);
 			
-		
+	
 		// then
 		assertThat(productoGuardado).isNotNull();
+		assertThat(productoGuardado.name()).isEqualTo(product1.getName());
 	}
 
 
@@ -105,9 +110,9 @@ class ProductServiceImplTest {
 	@DisplayName("Test para recuperar los dos productos creados")
 	void testFindAllProducts() {
 
-		when(productServiceImpl.findAll()).thenReturn(productsList);
+		given(productDao.findAll()).willReturn(productsList);
 		
-		List<Product> result = productServiceImpl.findAll();
+		List<ProductDto> result = productServiceImpl.findAll();
 		
 		assertEquals(2, result.size());
 	}
@@ -120,7 +125,7 @@ class ProductServiceImplTest {
 		given(productDao.findAll()).willReturn(Collections.emptyList());
 		
 		// when
-		List<Product> products = productServiceImpl.findAll();
+		List<ProductDto> products = productServiceImpl.findAll();
 		
 		
 		// then

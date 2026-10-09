@@ -35,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.dto.ProductDto;
 import com.example.entities.Product;
 import com.example.models.FileUploadResponse;
 import com.example.services.ProductService;
@@ -107,7 +108,8 @@ public class ProductController {
 			@RequestParam(name = "page", required = false) Integer page,
 			@RequestParam(name = "size", required = false) Integer size) {
 
-		List<Product> products = null;
+		// La capa de servicio ya devuelve DTOs, no entidades de persistencia
+		List<ProductDto> products = null;
 		Map<String, Object> responseAsMap = new HashMap<>();
 		Sort sort = Sort.by("name");
 
@@ -117,8 +119,8 @@ public class ProductController {
 
 			Pageable pageable = PageRequest.of(page, size, sort);
 
-			// Implica devolver los productos paginados, es decir, una pagina de Product
-			Page<Product> productPage = productService.findAll(pageable);
+			// Implica devolver los productos paginados, es decir, una pagina de ProductDto
+			Page<ProductDto> productPage = productService.findAll(pageable);
 			products = productPage.getContent();
 
 		} else {
@@ -128,18 +130,18 @@ public class ProductController {
 		}
 
 		/*
-		 * HATEOAS: envolvemos cada Product en un EntityModel y le agregamos sus enlaces
-		 * hipermedia. Codigo repetitivo a proposito (implementacion mas basica, sin
-		 * RepresentationModel ni RepresentationModelAssemblerSupport).
+		 * HATEOAS: envolvemos cada ProductDto en un EntityModel y le agregamos sus
+		 * enlaces hipermedia. Codigo repetitivo a proposito (implementacion mas basica,
+		 * sin RepresentationModel ni RepresentationModelAssemblerSupport).
 		 */
-		List<EntityModel<Product>> productosModel = new ArrayList<>();
+		List<EntityModel<ProductDto>> productosModel = new ArrayList<>();
 
-		for (Product producto : products) {
+		for (ProductDto producto : products) {
 
 			// Enlace self de cada producto -> GET /products/{id}
 			// Enlace a la coleccion -> GET /products
-			EntityModel<Product> productoModel = EntityModel.of(producto,
-					linkTo(methodOn(ProductController.class).findProductById(producto.getId())).withSelfRel(),
+			EntityModel<ProductDto> productoModel = EntityModel.of(producto,
+					linkTo(methodOn(ProductController.class).findProductById(producto.id())).withSelfRel(),
 					linkTo(methodOn(ProductController.class).dameProductos(null, null)).withRel("productos"));
 
 			productosModel.add(productoModel);
@@ -147,7 +149,7 @@ public class ProductController {
 
 		// Envolvemos la coleccion de EntityModel en un CollectionModel y le agregamos
 		// su propio enlace self
-		CollectionModel<EntityModel<Product>> productsModel = CollectionModel.of(productosModel);
+		CollectionModel<EntityModel<ProductDto>> productsModel = CollectionModel.of(productosModel);
 		productsModel.add(linkTo(methodOn(ProductController.class).dameProductos(null, null)).withSelfRel());
 
 		responseAsMap.put("products", productsModel);
@@ -173,16 +175,17 @@ public class ProductController {
 		ResponseEntity<Map<String, Object>> responseEntity = null;
 
 		try {
-			Product product = productService.findById(product_id);
+			// El servicio devuelve un DTO, no la entidad de persistencia
+			ProductDto product = productService.findById(product_id);
 
 			if (product != null) {
 
 				/*
-				 * HATEOAS: envolvemos el Product en un EntityModel y le agregamos los enlaces
-				 * hipermedia (self -> GET /products/{id}, productos -> GET /products)
+				 * HATEOAS: envolvemos el ProductDto en un EntityModel y le agregamos los
+				 * enlaces hipermedia (self -> GET /products/{id}, productos -> GET /products)
 				 */
-				EntityModel<Product> productModel = EntityModel.of(product,
-						linkTo(methodOn(ProductController.class).findProductById(product.getId())).withSelfRel(),
+				EntityModel<ProductDto> productModel = EntityModel.of(product,
+						linkTo(methodOn(ProductController.class).findProductById(product.id())).withSelfRel(),
 						linkTo(methodOn(ProductController.class).dameProductos(null, null)).withRel("productos"));
 
 				String successMessage = "El producto con id " + product_id + " ha sido encontrado";
@@ -292,14 +295,15 @@ public class ProductController {
 		}
 
 		try {
-			Product productoPersistido = productService.save(product);
+			// El servicio devuelve el DTO del producto ya persistido
+			ProductDto productoPersistido = productService.save(product);
 
 			/*
-			 * HATEOAS: envolvemos el Product persistido en un EntityModel con sus enlaces
-			 * (self -> GET /products/{id}, productos -> GET /products)
+			 * HATEOAS: envolvemos el ProductDto persistido en un EntityModel con sus
+			 * enlaces (self -> GET /products/{id}, productos -> GET /products)
 			 */
-			EntityModel<Product> productModel = EntityModel.of(productoPersistido,
-					linkTo(methodOn(ProductController.class).findProductById(productoPersistido.getId())).withSelfRel(),
+			EntityModel<ProductDto> productModel = EntityModel.of(productoPersistido,
+					linkTo(methodOn(ProductController.class).findProductById(productoPersistido.id())).withSelfRel(),
 					linkTo(methodOn(ProductController.class).dameProductos(null, null)).withRel("productos"));
 
 			responseAsMap.put("mensaje: ", "Producto persistido exitosamente!!!");
@@ -447,7 +451,8 @@ public class ProductController {
 		 * Persisto (guardo) el producto porque está bien formado compruebo si hay
 		 * imagen para guardarla y en tal caso debo eliminar la imagen del producto
 		 */
-		Product productoParaActualizar = productService.findById(product_id);
+		// El servicio devuelve un DTO, no la entidad de persistencia
+		ProductDto productoParaActualizar = productService.findById(product_id);
 
 		if (productoParaActualizar == null) {
 
@@ -460,9 +465,9 @@ public class ProductController {
 			/**
 			 * comprobar si productoParaActualizar tiene imagen y si es así eliminarla
 			 */
-			if (productoParaActualizar.getProductImage() != null) {
+			if (productoParaActualizar.productImage() != null) {
 				// Eliminar la imagen asociada
-				fileUtil.eliminarArchivo(productoParaActualizar.getProductImage());
+				fileUtil.eliminarArchivo(productoParaActualizar.productImage());
 			}
 			/**
 			 * agregar prefijo: código alfanumérico aleatorio con método Apache Commons text
@@ -491,14 +496,15 @@ public class ProductController {
 
 		try {
 			product.setId(product_id);
-			Product productoAGuardar = productService.save(product);
+			// El servicio devuelve el DTO del producto ya actualizado
+			ProductDto productoAGuardar = productService.save(product);
 
 			/*
-			 * HATEOAS: envolvemos el Product actualizado en un EntityModel con sus enlaces
-			 * (self -> GET /products/{id}, productos -> GET /products)
+			 * HATEOAS: envolvemos el ProductDto actualizado en un EntityModel con sus
+			 * enlaces (self -> GET /products/{id}, productos -> GET /products)
 			 */
-			EntityModel<Product> productModel = EntityModel.of(productoAGuardar,
-					linkTo(methodOn(ProductController.class).findProductById(productoAGuardar.getId())).withSelfRel(),
+			EntityModel<ProductDto> productModel = EntityModel.of(productoAGuardar,
+					linkTo(methodOn(ProductController.class).findProductById(productoAGuardar.id())).withSelfRel(),
 					linkTo(methodOn(ProductController.class).dameProductos(null, null)).withRel("productos"));
 
 			responseAsMap.put("mensaje: ", "Producto actualizado exitósamente!");
@@ -533,7 +539,8 @@ public class ProductController {
         try {
 
             // recuperar el producto y comprobar si hay foto y eliminar el archivo
-            Product productToDelete = productService.findById(id);
+            // El servicio devuelve un DTO, no la entidad de persistencia
+            ProductDto productToDelete = productService.findById(id);
 
             if (productToDelete == null) {
 
@@ -541,18 +548,18 @@ public class ProductController {
             return new ResponseEntity<Map<String, Object>>(responseAsMap, HttpStatus.NOT_FOUND);
         }
 
-            if (productToDelete.getProductImage() != null) {
-                fileUtil.eliminarArchivo(productToDelete.getProductImage());
+            if (productToDelete.productImage() != null) {
+                fileUtil.eliminarArchivo(productToDelete.productImage());
             }
 
-            productService.delete(productService.findById(id));
+            productService.delete(id);
 
             /*
              * HATEOAS: el recurso ya no existe, asi que no hay contenido que envolver.
              * Agregamos un CollectionModel vacio que contiene solo el enlace a la
              * coleccion de productos (GET /products).
              */
-            CollectionModel<Product> enlaces = CollectionModel.empty();
+            CollectionModel<ProductDto> enlaces = CollectionModel.empty();
             enlaces.add(linkTo(methodOn(ProductController.class).dameProductos(null, null)).withRel("productos"));
 
             String successMessage = "El producto con id " + id + ", ha sido eliminado";

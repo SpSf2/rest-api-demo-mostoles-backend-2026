@@ -33,6 +33,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
+import com.example.dto.PresentationDto;
+import com.example.dto.ProductDto;
 import com.example.entities.Presentation;
 import com.example.entities.Product;
 import com.example.services.ProductService;
@@ -87,9 +89,11 @@ class ProductControllerTest {
 	@Autowired
 	ObjectMapper objectMapper;
 	
-	List<Product> products = new ArrayList<>();
+	List<ProductDto> productsDto = new ArrayList<>();
 	Presentation presentation1, presentation2;
+	PresentationDto presentationDto1, presentationDto2;
 	Product product1, product2;
+	ProductDto productDto1, productDto2;
 
 	String token;
 	
@@ -149,8 +153,19 @@ class ProductControllerTest {
 				.presentation(presentation2)
 				.build();
 		
-		products.add(product1);
-		products.add(product2);
+		// Construimos los DTOs que ahora devuelve la capa de servicio (la capa de
+		// presentacion ya no trabaja con la entidad Product)
+		presentationDto1 = new PresentationDto(presentation1.getId(), presentation1.getName());
+		presentationDto2 = new PresentationDto(presentation2.getId(), presentation2.getName());
+
+		productDto1 = new ProductDto(product1.getId(), product1.getName(), product1.getDescription(),
+				product1.getStock(), product1.getPrice(), product1.getProductImage(), presentationDto1);
+
+		productDto2 = new ProductDto(product2.getId(), product2.getName(), product2.getDescription(),
+				product2.getStock(), product2.getPrice(), product2.getProductImage(), presentationDto2);
+
+		productsDto.add(productDto1);
+		productsDto.add(productDto2);
 	}
 
 	@Test
@@ -160,7 +175,7 @@ class ProductControllerTest {
 		// given
 		
 		given(productService.findAll(Sort.by("name")))
-			.willReturn(products);
+			.willReturn(productsDto);
 
 		// when => Realizar la peticion (request) HTTP, mediante el metodo GET
 		// al end point de products ("/products"). Aqui se utiliza MockMvc
@@ -174,7 +189,7 @@ class ProductControllerTest {
 		response.andExpect(status().isOk()).andDo(print())
 				// El CollectionModel serializa su contenido bajo "content"
 				.andExpect(jsonPath("$.products.content.size()",
-						is(products.size())))
+						is(productsDto.size())))
 				// Enlace self de la coleccion (CollectionModel). Al tener @RequestParam
 				// opcionales, Spring HATEOAS lo expone como plantilla /products{?page,size}
 				.andExpect(jsonPath("$.products.links[0].rel", is("self")))
@@ -183,11 +198,11 @@ class ProductControllerTest {
 				// Cada producto es un EntityModel: enlace self + enlace a la coleccion
 				.andExpect(jsonPath("$.products.content[0].links[0].rel", is("self")))
 				.andExpect(jsonPath("$.products.content[0].links[0].href",
-						is("http://localhost/products/" + products.get(0).getId())))
+						is("http://localhost/products/" + productDto1.id())))
 				.andExpect(jsonPath("$.products.content[0].links[1].rel", is("productos")))
 				// El contenido del EntityModel se "desenvuelve" (@JsonUnwrapped)
 				.andExpect(jsonPath("$.products.content[0].name",
-						is(products.get(0).getName())));
+						is(productDto1.name())));
 
 	}
 
@@ -197,7 +212,7 @@ class ProductControllerTest {
 		
 		// given
 		given(productService.save(any(Product.class)))
-			.willAnswer(invocation -> invocation.getArgument(0));
+			.willReturn(productDto1);
 		
 		// when
 		
@@ -246,7 +261,7 @@ class ProductControllerTest {
 		int productId = 1;
 		
 		given(productService.findById(productId))
-			.willReturn(product1);
+			.willReturn(productDto1);
 		
 		// when
 		mockMvc.perform(get("/products/{id}",
@@ -282,9 +297,9 @@ class ProductControllerTest {
 
         //given
         int id = 1;
-        given(productService.findById(id)).willReturn(product1);
+        given(productService.findById(id)).willReturn(productDto1);
         given(productService.save(any(Product.class)))
-                .willAnswer(invocation -> invocation.getArgument(0));
+                .willReturn(productDto1);
 
         //when
         String jsonStringProduct = objectMapper.writeValueAsString(product1);
@@ -325,8 +340,8 @@ class ProductControllerTest {
         //given
         int ProductId = 1;
 
-        given(productService.findById(ProductId)).willReturn(product1);
-        doNothing().when(productService).delete(product1);
+        given(productService.findById(ProductId)).willReturn(productDto1);
+        doNothing().when(productService).delete(ProductId);
 
         //when
         mockMvc.perform(delete("/products/{id}", ProductId)
