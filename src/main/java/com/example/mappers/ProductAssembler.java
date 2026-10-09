@@ -11,6 +11,9 @@ import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.hateoas.server.mvc.RepresentationModelAssemblerSupport;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import com.example.controllers.ProductController;
@@ -28,20 +31,21 @@ import com.example.dto.ProductDto;
  * Como la capa de servicio ya devuelve ProductDto, el assembler no vuelve a
  * mapear: solo decora el DTO con los enlaces.
  *
- * Enlaces generados:
+ * Enlaces generados (los de mutacion solo se anaden si el usuario es ADMIN):
  *
  *  - Item:       self -> GET /products/{id}
- *                update -> PUT /products/{id}
- *                delete -> DELETE /products/{id}
+ *                update -> PUT /products/{id}        (solo ADMIN)
+ *                delete -> DELETE /products/{id}     (solo ADMIN)
  *                productos -> GET /products
  *  - Coleccion:  self -> GET /products{?page,size}
- *                create -> POST /products
+ *                create -> POST /products            (solo ADMIN)
  *  - Paginado:   self, first, prev, next, last -> GET /products?page=..&size=..
- *                create -> POST /products
+ *                create -> POST /products            (solo ADMIN)
  */
 @Component
 public class ProductAssembler extends RepresentationModelAssemblerSupport<ProductDto, ProductDto> {
 
+    private static final String ROLE_ADMIN = "ROLE_ADMIN";
     private static final String REL_PRODUCTOS = "productos";
     private static final String REL_CREATE = "create";
     private static final String REL_UPDATE = "update";
@@ -62,27 +66,33 @@ public class ProductAssembler extends RepresentationModelAssemblerSupport<Produc
     @Override
     public ProductDto toModel(ProductDto productDto) {
 
-        productDto.add(
-                linkTo(methodOn(ProductController.class).findProductById(productDto.getId())).withSelfRel(),
-                updateLink(productDto.getId()),
-                linkTo(methodOn(ProductController.class).deleteProducto(productDto.getId())).withRel(REL_DELETE),
-                linkTo(methodOn(ProductController.class).dameProductos(null, null)).withRel(REL_PRODUCTOS));
+        productDto.add(linkTo(methodOn(ProductController.class).findProductById(productDto.getId())).withSelfRel());
+
+        // Los enlaces de mutacion solo se exponen al rol ADMIN
+        if (isAdmin()) {
+            productDto.add(updateLink(productDto.getId()));
+            productDto.add(linkTo(methodOn(ProductController.class).deleteProducto(productDto.getId())).withRel(REL_DELETE));
+        }
+
+        productDto.add(linkTo(methodOn(ProductController.class).dameProductos(null, null)).withRel(REL_PRODUCTOS));
 
         return productDto;
     }
 
     /**
      * Enlaces de la coleccion completa (sin paginar): self + operacion de alta
-     * (POST) para que el cliente sepa como crear un producto.
+     * (POST, solo ADMIN) para que el cliente sepa como crear un producto.
      */
     @Override
     public CollectionModel<ProductDto> toCollectionModel(Iterable<? extends ProductDto> entities) {
 
         CollectionModel<ProductDto> collectionModel = super.toCollectionModel(entities);
 
-        collectionModel.add(
-                linkTo(methodOn(ProductController.class).dameProductos(null, null)).withSelfRel(),
-                createLink());
+        collectionModel.add(linkTo(methodOn(ProductController.class).dameProductos(null, null)).withSelfRel());
+
+        if (isAdmin()) {
+            collectionModel.add(createLink());
+        }
 
         return collectionModel;
     }
@@ -107,8 +117,10 @@ public class ProductAssembler extends RepresentationModelAssemblerSupport<Produc
 
         // self apuntando a la pagina actual
         pagedModel.add(linkTo(methodOn(ProductController.class).dameProductos(number, size)).withSelfRel());
-        // operacion de alta (POST)
-        pagedModel.add(createLink());
+        // operacion de alta (POST, solo ADMIN)
+        if (isAdmin()) {
+            pagedModel.add(createLink());
+        }
         // primera y ultima pagina
         pagedModel.add(linkTo(methodOn(ProductController.class).dameProductos(0, size)).withRel(REL_FIRST));
         pagedModel.add(linkTo(methodOn(ProductController.class).dameProductos(lastPage, size)).withRel(REL_LAST));
@@ -122,6 +134,21 @@ public class ProductAssembler extends RepresentationModelAssemblerSupport<Produc
         }
 
         return pagedModel;
+    }
+
+    /**
+     * Indica si el usuario autenticado en la peticion actual tiene el rol ADMIN.
+     * Se consulta el SecurityContext, que Spring Security rellena a partir del
+     * token JWT en cada peticion.
+     */
+    private boolean isAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(ROLE_ADMIN::equals);
     }
 
     /**

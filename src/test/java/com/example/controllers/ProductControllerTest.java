@@ -104,29 +104,10 @@ class ProductControllerTest {
 	@BeforeEach
 	void setUp() throws Exception {
 
-		/*Necesitamos obtener un token válido para presentarlo en cada test 
-		Seleccionamos la clase creada en el payload.request LoginRequest*/
-		LoginRequest loginRequest = LoginRequest.builder()
-												.username("admin1")
-												.password("Temp2026$$##")
-												.build(); 
-		// El objeto anterior tiene que ser convertido a JSON, para lo cual utilizaremos
-		//el componente ObjectMapper que convierte String a Json:
-		String jsonLoginRequest = objectMapper.writeValueAsString(loginRequest);
-
-		//hacer la peticion al endpoint:
-		ResultActions resultActions = this.mockMvc.perform(post("/api/auth/signin")
-				    .contentType(MediaType.APPLICATION_JSON)
-					.content(jsonLoginRequest));
-
-		//obtenemos el token de la respuesta de la peticion anterior
-		MvcResult mvcResult = resultActions.andDo(print()).andReturn();
-
-		String contentAsString = mvcResult.getResponse().getContentAsString();
-
-		JSONObject jsonObject = new JSONObject(contentAsString);
-
-		this.token = "Bearer " + jsonObject.getString("token");
+		/*Necesitamos obtener un token válido para presentarlo en cada test.
+		Seleccionamos la clase creada en el payload.request LoginRequest.
+		Usamos un usuario ADMIN (admin1) para los tests de lectura/mutacion.*/
+		this.token = obtenerToken("admin1", "Temp2026$$##");
 		
 		presentation1 = Presentation.builder()
 				.name("decenas")
@@ -170,6 +151,30 @@ class ProductControllerTest {
 
 		productsDto.add(productDto1);
 		productsDto.add(productDto2);
+	}
+
+	/**
+	 * Realiza el login contra /api/auth/signin y devuelve la cabecera
+	 * Authorization ("Bearer <token>") para el usuario indicado.
+	 */
+	private String obtenerToken(String username, String password) throws Exception {
+
+		LoginRequest loginRequest = LoginRequest.builder()
+				.username(username)
+				.password(password)
+				.build();
+
+		String jsonLoginRequest = objectMapper.writeValueAsString(loginRequest);
+
+		MvcResult mvcResult = this.mockMvc.perform(post("/api/auth/signin")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(jsonLoginRequest))
+				.andReturn();
+
+		String contentAsString = mvcResult.getResponse().getContentAsString();
+		JSONObject jsonObject = new JSONObject(contentAsString);
+
+		return "Bearer " + jsonObject.getString("token");
 	}
 
 	@Test
@@ -412,7 +417,42 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.enlaces.links[1].rel", is("create")));
 
     }
-	
+
+    @Test
+    @DisplayName("Controller Test: un USER no recibe enlaces de mutacion en un producto")
+    void testEnlacesItemCondicionadosPorRolUser() throws Exception {
+
+        //given: usuario con solo ROLE_USER y un producto existente
+        String userToken = obtenerToken("user1", "Temp2026$$##");
+        given(productService.findById(1)).willReturn(productDto1);
+
+        //when / then: solo self y el enlace a la coleccion, sin update ni delete
+        mockMvc.perform(get("/products/{id}", 1)
+                .header("Authorization", userToken))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$['producto encontrado: '].links[0].rel", is("self")))
+                .andExpect(jsonPath("$['producto encontrado: '].links[1].rel", is("productos")))
+                .andExpect(jsonPath("$['producto encontrado: '].links[2]").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("Controller Test: un USER no recibe el enlace create en la coleccion")
+    void testEnlacesColeccionCondicionadosPorRolUser() throws Exception {
+
+        //given: usuario con solo ROLE_USER
+        String userToken = obtenerToken("user1", "Temp2026$$##");
+        given(productService.findAll(Sort.by("name"))).willReturn(productsDto);
+
+        //when / then: la coleccion solo expone self, sin el enlace create (POST)
+        mockMvc.perform(get("/products")
+                .header("Authorization", userToken))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.products.links[0].rel", is("self")))
+                .andExpect(jsonPath("$.products.links[1]").doesNotExist());
+    }
+
 }
 
 
