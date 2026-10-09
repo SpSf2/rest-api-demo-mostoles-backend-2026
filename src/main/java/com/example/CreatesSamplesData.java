@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.example.entities.Presentation;
-import com.example.entities.Product;    
+import com.example.entities.Product;
 import com.example.services.PresentationService;
 import com.example.services.ProductService;
 import com.example.spring_security_jwt.model.ERole;
@@ -17,6 +17,11 @@ import com.example.spring_security_jwt.model.Role;
 import com.example.spring_security_jwt.model.User;
 import com.example.spring_security_jwt.repository.RoleRepository;
 import com.example.spring_security_jwt.repository.UserRepository;
+
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 
 @Configuration
 public class CreatesSamplesData {
@@ -26,8 +31,6 @@ public class CreatesSamplesData {
         PresentationService presentationService,
         RoleRepository roleRepository, UserRepository userRepository,
         PasswordEncoder passwordEncoder) {
-            
-            
         return args -> {
 
             // Crearemos dos presentaciones, por unidad y por decenas, para los productos
@@ -149,5 +152,19 @@ primero inyectamos arriba el repositorio User y el PasswordEncoder */
                 .password(passwordEncoder.encode("Temp2026$$##"))
                 .build());
         };
+    }
+
+    @Bean
+    public OpenAPI customOpenAPI() {
+        final String securitySchemeName = "bearerAuth";
+        return new OpenAPI()
+            .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
+            .components(new Components()
+                .addSecuritySchemes(securitySchemeName,
+                    new SecurityScheme()
+                        .name(securitySchemeName)
+                        .type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer")
+                        .bearerFormat("JWT")));
     }
 }
