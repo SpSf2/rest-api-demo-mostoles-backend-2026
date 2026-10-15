@@ -545,4 +545,21 @@ public class ProductController {
         return responseEntity;
     }
 
+	/**
+     * Petición para listar todos los productos según la presentación recibida por parámetro.
+     * Ejemplo de uso: http://localhost:8080/products/products-by-presentation?presentation=unidad
+     */
+    @GetMapping("/products-by-presentation")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
+    public ResponseEntity<Map<String, Object>> getProductsByPresentation(@RequestParam String presentation) {
+        Map<String, Object> responseAsMap = new HashMap<>();
+
+        List<ProductDto> products = productService.findByPresentation(presentation);
+        CollectionModel<ProductDto> productsModel = productAssembler.toCollectionModel(products);
+
+        responseAsMap.put("products", productsModel);
+
+        return new ResponseEntity<>(responseAsMap, HttpStatus.OK);
+    }
+
 }

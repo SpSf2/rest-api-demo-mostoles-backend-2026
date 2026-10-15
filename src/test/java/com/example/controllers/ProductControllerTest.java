@@ -32,6 +32,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -451,6 +452,34 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.products.links[0].rel", is("self")))
                 .andExpect(jsonPath("$.products.links[1]").doesNotExist());
+    }
+
+	/**
+     * Comando Maven para ejecutar esta prueba concreta:
+     * ./mvnw test -Dtest=ProductControllerTest#testGetProductsByPresentation_Unauthenticated
+     */
+    @Test
+	@DisplayName ("Controller Test: un usuario no autenticado no puede acceder al endpoint de productos por presentacion")
+    public void testGetProductsByPresentation_Unauthenticated() throws Exception {
+        mockMvc.perform(get("/products/products-by-presentation")
+                .param("presentation", "unidad"))
+                .andExpect(status().isUnauthorized()); // o status().isForbidden() según la configuración de Security
+    }
+
+    /**
+     * Comando Maven para ejecutar esta prueba concreta:
+     * ./mvnw test -Dtest=ProductControllerTest#testGetProductsByPresentation_Authenticated
+     */
+    @Test
+    @WithMockUser(username = "user", roles = {"USER"})
+    @DisplayName("Controller Test: un usuario autenticado puede acceder al endpoint de productos por presentacion")
+    public void testGetProductsByPresentation_Authenticated() throws Exception {
+        // Mock de la respuesta del servicio
+        given(productService.findByPresentation("unidad")).willReturn(productsDto);
+
+        mockMvc.perform(get("/products/products-by-presentation")
+                .param("presentation", "unidad"))
+                .andExpect(status().isOk());
     }
 
 }

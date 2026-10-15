@@ -54,4 +54,13 @@ public class ProductServiceImpl implements ProductService {
         return productMapper.toDtoList(productDao.findAll());
     }
 
+    @Override
+    public List<ProductDto> findByPresentation(String presentation) {
+        List<Product> products = productDao.findByPresentationName(presentation);
+        // Convertir la lista de entidades Product a ProductDto 
+        return products.stream()
+                    .map(product -> productMapper.toDto(product)) 
+                    .toList();
+    }
+
 }

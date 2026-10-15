@@ -53,4 +53,8 @@ public interface ProductDao extends JpaRepository<Product, Integer> {
     // recupera el producto con su presentacion correspondiente
     @Query(value = "select p from Product p left join fetch p.presentation where p.id = :id")
     public Product findById(int id);
+
+    // Busca productos comparando el nombre de la presentación
+    List<Product> findByPresentationName(String name);
+    
 }
